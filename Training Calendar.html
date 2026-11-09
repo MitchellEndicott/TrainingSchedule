@@ -1,0 +1,953 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Training Week Calendar</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: seven-day grid on wide screens; stacked day cards on phones, with the selected day's detail opening directly under its card. */
+:root {
+  --bg: #f1f4f2;
+  --surface: #ffffff;
+  --surface-2: #e8eeea;
+  --fg: #12201a;
+  --muted: #55655e;
+  --line: #d1dad5;
+  --throw: #b45309;
+  --jump: #0f766e;
+  --run: #1d4ed8;
+  --lift: #7e22ce;
+  --coach: #be123c;
+  --rest: #5b6b77;
+  --font-display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "Public Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1512; --surface: #16201b; --surface-2: #1e2a24; --fg: #e8efea; --muted: #9aaba3; --line: #2b3932;
+    --throw: #f59e0b; --jump: #2dd4bf; --run: #60a5fa; --lift: #c084fc; --coach: #fb7185; --rest: #94a3b8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1512; --surface: #16201b; --surface-2: #1e2a24; --fg: #e8efea; --muted: #9aaba3; --line: #2b3932;
+  --throw: #f59e0b; --jump: #2dd4bf; --run: #60a5fa; --lift: #c084fc; --coach: #fb7185; --rest: #94a3b8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(34px, 6vw, 52px);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+  text-wrap: balance;
+}
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+
+.legend {
+  display: flex; flex-wrap: wrap; gap: 6px 16px;
+  margin: 20px 0 14px; padding: 0; list-style: none;
+  font-size: 12.5px; color: var(--muted);
+}
+.legend li { display: flex; align-items: center; gap: 6px; }
+
+.weekbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  margin: 0 0 14px; font-size: 13px; color: var(--muted);
+}
+.weekbar .wl { font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; font-size: 11px; }
+.seg-btns { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.seg-btns button {
+  font: inherit; font-size: 13px; font-weight: 500; color: var(--fg);
+  min-width: 40px; padding: 5px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+}
+.seg-btns button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.wnote { flex: 1 1 260px; min-width: 0; }
+
+.sw {
+  flex: none; width: 11px; height: 11px; border-radius: 2px;
+  background: var(--k, var(--rest)); border: 2px solid var(--k, var(--rest));
+}
+.sw.opt { background: transparent; }
+.k-throw { --k: var(--throw); } .k-jump { --k: var(--jump); } .k-run { --k: var(--run); }
+.k-lift { --k: var(--lift); } .k-coach { --k: var(--coach); } .k-rest { --k: var(--rest); }
+
+/* calendar */
+.cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  gap: 0 8px;
+}
+.day {
+  grid-row: span 3;
+  display: grid;
+  grid-template-rows: subgrid;
+  row-gap: 0;
+  min-width: 0;
+  padding: 0; margin: 0;
+  text-align: left; font: inherit; color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.day:hover { border-color: var(--muted); }
+.day[aria-expanded="true"] { border-color: var(--fg); box-shadow: 0 0 0 1px var(--fg); }
+.day-h {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 9px 10px;
+  background: var(--surface-2);
+  font-family: var(--font-display); font-weight: 600; font-size: 20px;
+  letter-spacing: 0.04em; text-transform: uppercase; line-height: 1.1;
+}
+.day[aria-expanded="true"] .day-h { background: var(--fg); color: var(--bg); }
+.today {
+  font-family: var(--font-body); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; padding: 1px 6px; border: 1px solid currentColor; border-radius: 999px;
+}
+.slot {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 10px 10px 12px;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.slot-h {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.item { display: flex; align-items: flex-start; gap: 7px; font-size: 13px; line-height: 1.3; min-width: 0; overflow-wrap: anywhere; }
+.item .sw { margin-top: 3px; }
+.item small { display: block; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* detail */
+#detail {
+  margin-top: 14px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--fg);
+  border-radius: 8px;
+}
+.d-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin-bottom: 4px; }
+.d-top h2 {
+  font-family: var(--font-display); font-weight: 700; font-size: 38px; line-height: 1;
+  text-transform: uppercase; letter-spacing: 0.02em; margin: 0;
+}
+.d-top p { margin: 0; color: var(--muted); }
+.secs { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 22px; margin-top: 18px; }
+.sec { min-width: 0; }
+.sec h3 {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
+  margin: 0 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--line);
+  font-family: var(--font-display); font-weight: 600; font-size: 20px; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.sec h3 span { font-family: var(--font-body); font-size: 12.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.blks { list-style: none; margin: 0; padding: 0; }
+.blk { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.blk:last-child { border-bottom: 0; }
+.blk-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.blk-h h4 { margin: 0; font-size: 15.5px; font-weight: 600; line-height: 1.3; }
+.dur { margin-left: auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag {
+  display: inline-block; margin-top: 6px; padding: 1px 8px;
+  font-size: 11.5px; font-weight: 600; border: 1px solid var(--fg); border-radius: 999px;
+}
+.sub { margin: 6px 0 0; font-size: 13.5px; color: var(--muted); }
+.ex { margin-top: 8px; font-size: 14px; }
+.ex .row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 14px;
+  padding: 6px 0; border-top: 1px dashed var(--line);
+}
+.ex .row:first-child { border-top: 0; }
+.ex .n { font-weight: 500; overflow-wrap: anywhere; }
+.ex .s { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ex .f { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.pts { margin: 8px 0 0; padding-left: 20px; font-size: 14px; }
+.pts li { margin: 2px 0; }
+.notes { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line); }
+.notes h3 { margin: 0 0 6px; font-size: 11.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); }
+.notes ul { margin: 0; padding-left: 20px; }
+.notes li { margin: 4px 0; max-width: 72ch; }
+
+.cond { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 14px; font-size: 13px; }
+.cond .wl { color: var(--muted); font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; font-size: 11px; }
+.cond-note { flex-basis: 100%; margin: 0; color: var(--muted); max-width: 72ch; }
+
+.tbl .tag { margin: 0; white-space: nowrap; }
+.tbl td.dim { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* reference */
+.ref { margin-top: 40px; }
+.ref h2 { font-family: var(--font-display); font-weight: 600; font-size: 24px; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 10px; }
+.refgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 28px; margin-top: 28px; }
+.refgrid h2 { font-size: 22px; }
+.refgrid ul { margin: 0; padding-left: 20px; }
+.refgrid li { margin: 6px 0; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 11px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--surface-2); white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.foot { margin: 14px 0 0; color: var(--muted); font-size: 13.5px; max-width: 72ch; }
+
+@media (max-width: 899px) {
+  .cal { display: flex; flex-direction: column; gap: 8px; }
+  .day { display: block; }
+  .day-h { font-size: 22px; padding: 11px 14px; }
+  .slot { padding: 10px 14px 12px; }
+  #detail { margin: 8px 0 6px; padding: 16px; }
+  .d-top h2 { font-size: 32px; }
+}
+
+
+/* training log */
+.log-tools { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:24px 0 12px; }
+.log-tools button, .log-actions button { font:inherit; font-size:13px; font-weight:600; padding:8px 12px; border:1px solid var(--line); border-radius:7px; background:var(--surface); color:var(--fg); cursor:pointer; }
+.log-tools button:hover, .log-actions button:hover { border-color:var(--fg); }
+.log-status { color:var(--muted); font-size:12px; }
+.log-panel { margin-top:18px; padding:18px; background:var(--surface); border:1px solid var(--line); border-radius:8px; }
+.log-panel h3 { margin:0 0 5px; font-family:var(--font-display); font-size:25px; text-transform:uppercase; letter-spacing:.04em; }
+.log-intro { margin:0 0 14px; color:var(--muted); font-size:13px; }
+.log-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px 16px; }
+.log-field { min-width:0; display:flex; flex-direction:column; gap:5px; }
+.log-field.full { grid-column:1 / -1; }
+.log-field label, .log-check { font-size:13px; font-weight:600; }
+.log-field input, .log-field select, .log-field textarea { width:100%; min-width:0; padding:9px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; font-size:14px; }
+.log-field textarea { min-height:66px; resize:vertical; }
+.log-check { display:flex; align-items:center; gap:9px; min-height:40px; }
+.log-check input { width:18px; height:18px; accent-color:var(--fg); }
+.log-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:14px; }
+.log-actions .save { background:var(--fg); color:var(--bg); border-color:var(--fg); }
+.adapt { margin:16px 0 0; padding:14px 16px; border:1px solid var(--line); border-left:4px solid var(--jump); border-radius:6px; background:var(--surface-2); }
+.adapt.warning { border-left-color:var(--throw); }
+.adapt h4 { margin:0 0 5px; font-size:14px; }
+.adapt p { margin:4px 0; font-size:13px; }
+.adapt ul { margin:6px 0 0; padding-left:19px; font-size:13px; }
+.adapt li { margin:3px 0; }
+.log-history { margin-top:16px; color:var(--muted); font-size:12px; }
+@media (max-width:600px) { .log-grid { grid-template-columns:1fr; } .log-field.full { grid-column:auto; } .log-panel { padding:14px; } }
+
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Training week</h1>
+    <p>Plan for the rest of the fall semester. Select a day to see the drills, sets, reps and timing for each session.</p>
+  </header>
+
+  <ul class="legend" aria-label="Legend">
+    <li class="k-throw"><span class="sw"></span>Throws</li>
+    <li class="k-jump"><span class="sw"></span>Jumps</li>
+    <li class="k-run"><span class="sw"></span>Running</li>
+    <li class="k-lift"><span class="sw"></span>Lift</li>
+    <li class="k-coach"><span class="sw"></span>Coached</li>
+    <li class="k-rest"><span class="sw"></span>Recovery</li>
+    <li><span class="sw opt" style="--k: var(--muted)"></span>Hollow = optional</li>
+  </ul>
+
+  <div class="weekbar">
+    <span class="wl">Cycle week</span>
+    <span class="seg-btns" id="weekbtns" role="group" aria-label="Cycle week">
+      <button type="button" id="wkA" data-week="A" aria-pressed="true">A</button>
+      <button type="button" id="wkB" data-week="B" aria-pressed="false">B</button>
+    </span>
+    <span class="wnote" id="wnote"></span>
+  </div>
+
+  <div class="cal" id="cal"></div>
+  <div id="detailSlot"><section id="detail" aria-live="polite"></section></div>
+
+
+  <div class="log-tools" aria-label="Training log tools">
+    <button type="button" id="exportLog">Export training log</button>
+    <label class="log-tools" style="margin:0;gap:6px;cursor:pointer"> 
+      <button type="button" id="importLogButton">Import backup</button>
+      <input type="file" id="importLogFile" accept="application/json,.json" hidden>
+    </label>
+    <span class="log-status" id="storageStatus">Entries save in this browser automatically when you press Save.</span>
+  </div>
+
+  <section class="ref">
+    <h2>Indoor meets</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Date</th><th>Meet</th><th>Events</th><th>Away</th></tr></thead>
+        <tbody id="meets"></tbody>
+      </table>
+    </div>
+    <p class="foot">The Lauren McCluskey Invitational is the planned heptathlon. Riverfront and the Whitworth Indoor Invite remain heptathlon options if you still need to qualify.</p>
+  </section>
+
+  <section class="ref">
+    <h2>Weekly exposure</h2>
+    <div class="tbl">
+      <table>
+        <thead><tr><th>Event</th><th>Weekly exposure</th><th>Priority</th></tr></thead>
+        <tbody>
+          <tr><td>High jump</td><td>Tue and Thu mornings, plus Friday every other week</td><td>Very high</td></tr>
+          <tr><td>Long jump</td><td>Wed and Thu mornings, plus Friday every other week</td><td>Very high</td></tr>
+          <tr><td>Shot put</td><td>Monday</td><td>Refine technique</td></tr>
+          <tr><td>Discus</td><td>Monday, light, every other week</td><td>Maintain until outdoor season</td></tr>
+          <tr><td>Pole vault</td><td>Wednesday, coached</td><td>Maintain and develop</td></tr>
+          <tr><td>Hurdles</td><td>Monday, coached</td><td>Develop</td></tr>
+          <tr><td>Sprints</td><td>Tue and Thu conditioning classes</td><td>Develop</td></tr>
+          <tr><td>1000m / 1500m</td><td>Two easy runs (Tue, Sat); coach sets tempo work</td><td>Build aerobic base</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="refgrid">
+      <div>
+        <h2>Future changes</h2>
+        <ul>
+          <li><strong>Javelin.</strong> Add regular javelin practice when coaching and equipment access are available.</li>
+          <li><strong>More pole vaulting.</strong> Build in additional vault sessions when supervised practice time allows.</li>
+          <li><strong>Dedicated plyometric workout.</strong> Add a separate session when the schedule can accommodate it.</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="foot">Fall plan only. Rework the schedule in December/January. Priorities: technical precision on the track, speed and power in the weight room. “Small improvements, repeated consistently, become big performances.”</p>
+  </section>
+</div>
+
+<script>
+var week = 'A';
+var cond = { tue: 'unk', thu: 'unk' };
+var COND = { unk: 'Not sure yet', acc: 'Acceleration', max: 'Max velocity', tmp: 'Tempo' };
+function condLabel(id) { return cond[id] === 'unk' ? '' : ' · ' + COND[cond[id]]; }
+function condText(id) {
+  var c = cond[id];
+  var speed = (c === 'acc' || c === 'max');
+  if (id === 'tue') {
+    if (speed) return 'Speed day this afternoon. Keep the morning technical with 2–3 quality full jumps.';
+    if (c === 'tmp') return 'Tempo day this afternoon. There is room for a fuller session, 3–5 full jumps.';
+    return 'Not set. Plan 3–5 full jumps and drop to 2–3 if the afternoon turns out to be acceleration or max velocity.';
+  }
+  if (speed) return 'Speed day this afternoon. Use the low end of the jump ranges and cut the takeoff drills to 2 × 2.';
+  if (c === 'tmp') return 'Tempo day this afternoon. There is more room, so use the upper end of the ranges.';
+  return 'Not set. The ranges below are the full span. Trim to the low end if the afternoon is acceleration or max velocity.';
+}
+var WEEKS = {
+  A: { thu: 'hj', fri: 'lj', discus: true },
+  B: { thu: 'lj', fri: 'hj', discus: false }
+};
+var FRI = {
+  hj: { k: 'jump', name: 'High jump', desc: '20–30 min of approach and takeoff drills.' },
+  lj: { k: 'jump', name: 'Long jump', desc: '20–30 min of approach and takeoff drills.' }
+};
+
+var days = [
+  {
+    id: 'mon', name: 'Monday', summary: 'Throws, hurdles, upper body',
+    cal: function () { return {
+      am: { win: '10:15–11:30', items: [{ k: 'throw', t: WEEKS[week].discus ? 'Shot put + light discus' : 'Shot put', time: WEEKS[week].discus ? '55–60 min' : '40–45 min' }] },
+      pm: [{ time: '3:00–4:10', k: 'coach', t: 'Coached hurdles' }, { time: '4:10–5:00', k: 'lift', t: 'Upper-body lift' }]
+    }; },
+    detail: function () {
+      var dis = WEEKS[week].discus;
+      var rows = [
+        ['Dynamic warm-up', '8 min', 'Mobility and readiness'],
+        ['Shot: standing power-position throws', '3 × 3', 'Finish position and balance'],
+        ['Shot: South African throws', '3 × 3', 'Separation and rhythm'],
+        ['Shot: full rotational throws', '4 × 2', 'Lower body initiates, arm finishes']
+      ];
+      if (dis) {
+        rows.push(['Discus: standing throws', '3 × 3', 'Release and orbit']);
+        rows.push(['Discus: full throws', '3 × 2', 'Rhythm and balance, easy effort']);
+      }
+      return {
+      am: { meta: 'After chemistry · ' + (dis ? '55–60' : '40–45') + ' min', blocks: [
+        { k: 'throw', h: dis ? 'Shot put + light discus' : 'Shot put', dur: dis ? '55–60 min' : '40–45 min', rows: rows }
+      ] },
+      pm: { meta: 'Team practice', blocks: [
+        { k: 'coach', h: 'Coached hurdles', dur: '3:00–4:10', tag: 'Fixed', sub: 'Your head coach wants you hurdling with him every Monday.' },
+        { k: 'lift', h: 'Upper-body lift', dur: '4:10–5:00', rows: [
+          ['Medicine-ball rotational throw', '3 × 4/side'],
+          ['Medicine-ball chest pass', '3 × 4'],
+          ['Bench press', '4 × 5'],
+          ['Pull-ups', '3 × 6–8'],
+          ['Landmine rotations', '2 × 8/side'],
+          ['Landmine anti-rotation press', '2 × 8/side'],
+          ['Reverse hypers', '2 × 12'],
+          ['Band face pulls', '2 × 15'],
+          ['Incline DB press', '2 × 8']
+        ] }
+      ] },
+      notes: [
+        'Shot put: improve hip and shoulder sequencing and avoid rushing the finish.',
+        'Discus is outdoor-only, so it is a light touch every other week until outdoor season. Week B is shot put only.',
+        'This is a technical session, not a max-effort throwing day. Hurdles follow in the afternoon.',
+        'Main lifts at RPE 7–8. Medicine-ball throws should be explosive, not fatiguing. The lift is listed in priority order. If time is short, drop whatever you have not reached.',
+        'Superset the two landmine exercises. Landmine rotations lead with the hips, and the shoulders follow a beat later. On the anti-rotation press, press out and resist the twist.',
+        'Reverse hypers are a light finisher for the glutes, hamstrings and low back. Keep them smooth and well short of failure.'
+      ]
+    }; }
+  },
+  {
+    id: 'tue', name: 'Tuesday', summary: 'High jump, easy run, conditioning',
+    cal: function () { return {
+      am: { win: '9:15 onward', items: [{ k: 'jump', t: 'High jump', time: '50–60 min' }, { k: 'run', t: 'Easy run', time: '10–20 min' }] },
+      pm: [{ time: '4:00–5:20' + condLabel('tue'), k: 'run', t: 'Sports conditioning (running)' }]
+    }; },
+    detail: function () { var jf = (cond.tue === 'acc' || cond.tue === 'max') ? '2–3 attempts' : '3–5 attempts'; return {
+      picker: 'tue',
+      am: { meta: 'After calculus', blocks: [
+        { k: 'jump', h: 'High jump', dur: '50–60 min', sub: 'Your primary high-jump development session.', rows: [
+          ['Dynamic warm-up', '8–10 min', 'Ankles, hips, sprint mechanics'],
+          ['Curve runs', '4', 'Consistent radius and lean'],
+          ['Full approach run-throughs', '4', 'Rhythm and check marks'],
+          ['J-approach takeoff drills', '3 × 2', 'Penultimate step and takeoff'],
+          ['Scissor jumps', '3 × 2', 'Takeoff direction and posture'],
+          ['Full high jumps', jf, 'Quality over height']
+        ] },
+        { k: 'run', h: 'Easy run', dur: '10–20 min', tag: 'Moved from Monday', list: [
+          'Easy, conversational pace',
+          'No intervals, strides or finishing sprints',
+          'Before noon, ideally after high jump with some recovery in between'
+        ] }
+      ] },
+      pm: { meta: 'Sprints coach', blocks: [
+        { k: 'run', h: 'Sports conditioning (running)', dur: '4:00–5:20', sub: 'Running only. No technical event work in class.' }
+      ] },
+      notes: [
+        'Approach and takeoff are what limit your high jump, so spend the quality reps there and let the full-jump count follow. Record your approach marks and takeoff location each session.',
+        'Priorities: approach consistency, curve mechanics, takeoff position and vertical impulse.',
+        'You learn the afternoon session the week of. Pick it above once you know and the jump volume adjusts.',
+        'Do the run before noon, after the jump session and a break. Lunch starts around 12:15.'
+      ]
+    }; }
+  },
+  {
+    id: 'wed', name: 'Wednesday', summary: 'Long jump, pole vault, lower body',
+    cal: function () { return {
+      am: { win: '10:15 onward', items: [{ k: 'jump', t: 'Long jump', time: '45–55 min' }, { k: 'throw', t: 'Light throwing', time: '10–15 min', opt: true }] },
+      pm: [{ time: '3:00–4:10', k: 'coach', t: 'Coached pole vault' }, { time: '4:10–5:00', k: 'lift', t: 'Lower-body lift' }]
+    }; },
+    detail: function () { return {
+      am: { meta: 'After chemistry', blocks: [
+        { k: 'jump', h: 'Long jump', dur: '45–55 min', rows: [
+          ['Dynamic warm-up', '8–10 min', 'Readiness'],
+          ['Approach run-throughs', '4–6', 'Consistent steps and board accuracy'],
+          ['Penultimate-step drills', '3 × 3', 'Lowering and projection'],
+          ['Pop-ups / short-approach takeoffs', '3 × 2', 'Takeoff mechanics'],
+          ['Short-approach jumps', '3–4', 'Horizontal projection'],
+          ['Full-approach jumps', '0–2', 'Only if fresh and technically sound']
+        ] },
+        { k: 'throw', opt: true, h: 'Light throwing technique', dur: '10–15 min', tag: 'Optional', list: [
+          'Low-intensity shot put or discus drills',
+          'Only if fresh and time permits, not a second throwing session'
+        ] }
+      ] },
+      pm: { meta: 'Team practice', blocks: [
+        { k: 'coach', h: 'Coached pole vault', dur: '3:00–4:10', tag: 'Fixed', sub: 'Your only regular coached event window. Vaulting needs a coach present, and drills and attempt counts come from him. Keep full-approach vaults to a number you recover from by Thursday.' },
+        { k: 'lift', h: 'Lower-body lift', dur: '4:10–5:00', rows: [
+          ['Hang clean', '4 × 2'],
+          ['Back squat', '4 × 4'],
+          ['Romanian deadlift', '3 × 6'],
+          ['Bulgarian split squat', '2 × 6/leg'],
+          ['Standing calf raise', '2 × 12']
+        ] }
+      ] },
+      notes: [
+        'Approach and takeoff are what limit your long jump, so lock in and measure the approach before adding full-approach jumps.',
+        'Priorities: approach consistency, board accuracy, penultimate-step mechanics, takeoff and horizontal projection.',
+        'Cleans and squats at RPE 7–8. Cleans stay explosive, squats challenging but not grinding.',
+        'The lift is listed in priority order. If time is short, drop whatever you have not reached.',
+        'If vaulting is demanding, cut squats to 3 sets or split squats to 1 set. If you feel unusually fatigued, do not force the full lift.',
+        'If Thursday turns out to be a speed day, swap the Romanian deadlifts for reverse hypers, 3 × 10–12.',
+        'This is a heavy day: long jump, vault and lower-body strength. Cap the full-approach vaults so you are fresh for Thursday, and trim the lift if vaulting was demanding.'
+      ]
+    }; }
+  },
+  {
+    id: 'thu', name: 'Thursday', summary: 'High jump and long jump, conditioning',
+    cal: function () { return {
+      am: { win: '9:15–10:45', items: [{ k: 'jump', t: 'High jump + long jump', time: (WEEKS[week].thu === 'hj' ? 'High jump leads' : 'Long jump leads') }] },
+      pm: [{ time: '4:00–5:20' + condLabel('thu'), k: 'run', t: 'Sports conditioning (running)' }]
+    }; },
+    detail: function () {
+      var a = WEEKS[week].thu === 'hj';
+      var hard = (cond.thu === 'acc' || cond.thu === 'max');
+      var easy = (cond.thu === 'tmp');
+      var hjTake = hard ? '2 × 2' : '3 × 2';
+      var hjFull = hard ? '2' : (easy ? '3–4' : '2–4');
+      var ljShort = hard ? '2' : (easy ? '3' : '2–3');
+      return {
+        picker: 'thu',
+        am: { meta: 'No morning class · 65–75 min', blocks: [
+          { k: 'jump', h: 'High jump', dur: a ? '40–45 min' : '20–25 min',
+            sub: a ? 'Larger share this week.' : 'Technical share this week.', rows: [
+            ['Curve runs', '3–4', 'Approach rhythm'],
+            ['Takeoff drills', hjTake, 'Takeoff mechanics'],
+            ['Full jumps', hjFull, 'Quality attempts']
+          ] },
+          { k: 'jump', h: 'Long jump', dur: a ? '20–25 min' : '40–45 min',
+            sub: a ? 'Technical share this week.' : 'Larger share this week.', rows: [
+            ['Approach runs', '3–4', 'Board accuracy'],
+            ['Penultimate drills', '2 × 3', 'Takeoff preparation'],
+            ['Short-approach jumps', ljShort, 'Technical execution']
+          ] }
+        ] },
+        pm: { meta: 'Sprints coach', blocks: [
+          { k: 'run', h: 'Sports conditioning (running)', dur: '4:00–5:20', sub: 'Running only. No technical event work in class.' }
+        ] },
+        notes: [
+          'Start with an 8–10 min dynamic warm-up. This is your second weekly exposure to both jumping events, so it is not two full-volume workouts.',
+          'You learn the afternoon session the week of. Pick it above once you know and the jump volume adjusts.',
+          'Use the cycle week selector above to flip which event leads.'
+        ]
+      };
+    }
+  },
+  {
+    id: 'fri', name: 'Friday', summary: 'Open morning, independent work, full body',
+    cal: function () { var f = FRI[WEEKS[week].fri]; return {
+      am: { win: '', items: [{ k: 'rest', t: 'Open morning', opt: true }] },
+      pm: [{ time: '3:00–4:10', k: f.k, t: f.name, opt: true }, { time: '4:10–5:00', k: 'lift', t: 'Full-body lift' }]
+    }; },
+    detail: function () {
+      var f = FRI[WEEKS[week].fri];
+      return {
+        am: { meta: 'Calculus, chemistry, internship prep', blocks: [
+          { k: 'rest', opt: true, h: 'Left open on purpose', sub: 'Class runs until 11:20, so no formal session. Mobility or recovery if you can fit it.' }
+        ] },
+        pm: { meta: 'Independent track time, no coaches', blocks: [
+          { k: f.k, opt: true, h: f.name, dur: '3:00–4:10', tag: 'Optional · Week ' + week, sub: f.desc + ' Keep it low to moderate. Skip it if the week has been demanding or you need recovery.' },
+          { k: 'lift', h: 'Full-body lift', dur: '4:10–5:00', rows: [
+            ['Hang power clean', '3 × 2'],
+            ['Deadlift', '3 × 4'],
+            ['DB push press', '3 × 5'],
+            ['Nordic hamstring curls', '2 × 3–6'],
+            ['One-arm DB row', '3 × 8/side'],
+            ['Exercise-ball hamstring curls', '2 × 10']
+          ] }
+        ] },
+        notes: [
+          'Hang power cleans are your second power session of the week. Keep them fast at RPE 7 and stop the set if bar speed drops.',
+          'Deadlift at RPE 7–8 with no maximal pulls. Push press should be explosive.',
+          'Start Nordics at 2 × 3 and build toward 2 × 4–6 over a few weeks. Soreness peaks a day or two later, and Saturday and Sunday give you room to recover.',
+          'The lift is listed in priority order. If time is short, drop whatever you have not reached.',
+          'If you jump independently before lifting, do not add more plyometrics to this lift.',
+          'Friday independent work alternates between long jump and high jump, whichever had the smaller share on Thursday.'
+        ]
+      };
+    }
+  },
+  {
+    id: 'sat', name: 'Saturday', summary: 'Easy run',
+    cal: function () { return {
+      am: { win: '', items: [{ k: 'run', t: 'Easy run', time: '10–20 min' }] },
+      pm: [{ time: '', k: 'rest', t: 'Recovery' }]
+    }; },
+    detail: function () { return {
+      am: { meta: 'Before noon', blocks: [
+        { k: 'run', h: 'Easy run', dur: '10–20 min', sub: 'Your second dedicated easy run of the week.', list: [
+          'Conversational pace throughout',
+          'No intervals, strides or finishing sprints',
+          'Finish feeling like you could keep going',
+          'Mobility afterward if you like'
+        ] }
+      ] },
+      pm: { meta: '', blocks: [{ k: 'rest', h: 'Recovery' }] },
+      notes: []
+    }; }
+  },
+  {
+    id: 'sun', name: 'Sunday', summary: 'Full rest',
+    cal: function () { return { am: { win: '', items: [{ k: 'rest', t: 'Rest' }] }, pm: [{ time: '', k: 'rest', t: 'Rest' }] }; },
+    detail: function () { return {
+      am: { meta: '', blocks: [{ k: 'rest', h: 'Full rest', sub: 'No scheduled training. Walking and normal activity are fine.' }] },
+      pm: { meta: '', blocks: [{ k: 'rest', h: 'Full rest' }] },
+      notes: []
+    }; }
+  }
+];
+
+var calEl = document.getElementById('cal');
+var panel = document.getElementById('detail');
+var slot = document.getElementById('detailSlot');
+var mq = window.matchMedia('(max-width: 899px)');
+var dayEls = [];
+var current = 0;
+var todayIdx = (new Date().getDay() + 6) % 7;
+
+function swHTML(opt) { return '<span class="sw' + (opt ? ' opt' : '') + '"></span>'; }
+function calSlot(label, win, itemsHTML) {
+  return '<span class="slot"><span class="slot-h">' + label + (win ? ' · ' + win : '') + '</span>' + itemsHTML + '</span>';
+}
+function calItem(it) {
+  return '<span class="item k-' + it.k + '">' + swHTML(it.opt) +
+    '<span>' + it.t + (it.time ? '<small>' + it.time + '</small>' : '') + '</span></span>';
+}
+function dayHTML(d, i) {
+  var c = d.cal();
+  return '<span class="day-h"><span>' + d.name + '</span>' + (i === todayIdx ? '<span class="today">TODAY</span>' : '') + '</span>' +
+    calSlot('Morning', c.am.win, c.am.items.map(calItem).join('')) +
+    calSlot('Afternoon', '', c.pm.map(calItem).join(''));
+}
+
+days.forEach(function (d, i) {
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'day';
+  b.id = 'day-' + d.id;
+  b.setAttribute('aria-controls', 'detail');
+  b.setAttribute('aria-expanded', 'false');
+  b.innerHTML = dayHTML(d, i);
+  b.addEventListener('click', function () { select(i, true); });
+  calEl.appendChild(b);
+  dayEls.push(b);
+});
+
+function blockHTML(b) {
+  var rows = b.rows ? '<div class="ex">' + b.rows.map(function (r) {
+    return '<div class="row"><span class="n">' + r[0] + '</span><span class="s">' + r[1] + '</span>' + (r[2] ? '<span class="f">' + r[2] + '</span>' : '') + '</div>';
+  }).join('') + '</div>' : '';
+  return '<li class="blk k-' + b.k + '"><div class="blk-h">' + swHTML(b.opt) + '<h4>' + b.h + '</h4>' +
+    (b.dur ? '<span class="dur">' + b.dur + '</span>' : '') + '</div>' +
+    (b.tag ? '<span class="tag">' + b.tag + '</span>' : '') +
+    (b.sub ? '<p class="sub">' + b.sub + '</p>' : '') + rows +
+    (b.list ? '<ul class="pts">' + b.list.map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>' : '') + '</li>';
+}
+function secHTML(title, s) {
+  return '<section class="sec"><h3>' + title + (s.meta ? ' <span>' + s.meta + '</span>' : '') + '</h3><ul class="blks">' +
+    s.blocks.map(blockHTML).join('') + '</ul></section>';
+}
+
+
+// The log is stored by calendar date in this browser. Export a JSON backup before
+// clearing browser data or moving the file to another device/browser.
+var LOG_KEY = 'trainingWeekCalendarLog_v1';
+var trainingLogs = {};
+try {
+  var storedLogs = localStorage.getItem(LOG_KEY);
+  if (storedLogs) trainingLogs = JSON.parse(storedLogs) || {};
+  var storedWeek = localStorage.getItem('trainingWeekCycle');
+  if (storedWeek === 'A' || storedWeek === 'B') week = storedWeek;
+  document.getElementById('storageStatus').textContent = 'Saved locally in this browser · ' + Object.keys(trainingLogs).length + ' logged day(s).';
+} catch (err) {
+  document.getElementById('storageStatus').textContent = 'Browser storage is unavailable. Export a backup if entries are important.';
+}
+function saveLogs() {
+  try {
+    localStorage.setItem(LOG_KEY, JSON.stringify(trainingLogs));
+    document.getElementById('storageStatus').textContent = 'Saved locally in this browser · ' + Object.keys(trainingLogs).length + ' logged day(s).';
+    return true;
+  } catch (err) {
+    document.getElementById('storageStatus').textContent = 'Could not save to browser storage. Export a backup or check browser settings.';
+    return false;
+  }
+}
+function dateKey(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+function dateForDay(index) {
+  var now = new Date();
+  var monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay()+6)%7));
+  monday.setDate(monday.getDate() + index);
+  return monday;
+}
+function dateLabel(d) { return d.toLocaleDateString('en-US', {weekday:'long', month:'short', day:'numeric', year:'numeric'}); }
+function recentTrainingLoad(index, daysBack) {
+  var target = dateForDay(index);
+  var entries = [];
+  for (var offset = 1; offset <= (daysBack || 3); offset++) {
+    var d = new Date(target.getFullYear(), target.getMonth(), target.getDate() - offset);
+    var entry = trainingLogs[dateKey(d)];
+    if (entry) entries.push({date:d, entry:entry});
+  }
+  var fatigueValues = entries.map(function(item) { return Number(item.entry.fatigue || 0); }).filter(function(v) { return v >= 1 && v <= 5; });
+  var qualityValues = entries.map(function(item) { return Number(item.entry.quality || 0); }).filter(function(v) { return v >= 1 && v <= 5; });
+  var highFatigue = fatigueValues.filter(function(v) { return v >= 4; }).length;
+  var lowQuality = qualityValues.filter(function(v) { return v <= 2; }).length;
+  var avgFatigue = fatigueValues.length ? fatigueValues.reduce(function(a,b) { return a+b; }, 0) / fatigueValues.length : 0;
+  var painEntries = entries.filter(function(item) { return item.entry.pain; });
+  var concerningDays = entries.filter(function(item) { var f = Number(item.entry.fatigue || 0); var q = Number(item.entry.quality || 0); return f >= 4 || (q >= 1 && q <= 2); }).length;
+  var reduce = concerningDays >= 2 || (fatigueValues.length >= 2 && avgFatigue >= 4);
+  var moderate = !reduce && (highFatigue >= 1 || avgFatigue >= 3.3 || lowQuality >= 1);
+  return {entries:entries, fatigueValues:fatigueValues, qualityValues:qualityValues, highFatigue:highFatigue, lowQuality:lowQuality, avgFatigue:avgFatigue, painEntries:painEntries, concerningDays:concerningDays, reduce:reduce, moderate:moderate};
+}
+function escapeHTML(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function(c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+function selectedLog() { return trainingLogs[dateKey(dateForDay(current))] || {}; }
+function conditioningValue(entry) {
+  if (!entry || !entry.conditioning) return 'unk';
+  return entry.conditioning;
+}
+function adjustmentFor(index) {
+  var load = recentTrainingLoad(index, 3);
+  if (!load.entries.length) return '<div class="adapt"><h4>Next-session adjustment</h4><p>No training logs were found in the previous three days. The standard plan is unchanged. Log your sessions to make adjustments reflect your actual workload.</p></div>';
+  var items = [];
+  var warning = false;
+  if (load.painEntries.length) {
+    warning = true;
+    items.push('<li><strong>Pain/stiffness logged within the last three days.</strong> Identify the affected area before training and discuss modifications with your coach. Do not perform painful movements or use a generic volume reduction as a substitute for assessing the issue. If symptoms are significant, worsening, or persistent, stop the affected activity and get appropriate medical assessment.</li>');
+  }
+  if (load.reduce) {
+    items.push('<li><strong>Cumulative fatigue flag:</strong> '+load.concerningDays+' of the last '+load.entries.length+' logged day(s) had high fatigue (4–5) and/or low quality (1–2); '+load.highFatigue+' high-fatigue rating(s) and '+load.lowQuality+' low-quality rating(s)'+(load.fatigueValues.length ? ', and average logged fatigue was '+load.avgFatigue.toFixed(1)+'/5' : '')+'. Tomorrow’s displayed jump and lifting volume is reduced. Keep high-speed and explosive work crisp; do not add missed volume.</li>');
+  } else if (load.moderate) {
+    items.push('<li><strong>Some accumulated fatigue:</strong> use the lower end of the prescribed ranges and judge the session by warm-up quality, mechanics, and bar speed. One demanding day alone does not trigger an automatic volume cut.</li>');
+  } else {
+    items.push('<li><strong>Recent workload looks manageable:</strong> no repeated high-fatigue or low-quality pattern was recorded. Keep the planned session and progress only if warm-up quality, mechanics, and bar speed support it.</li>');
+  }
+  if (load.entries.some(function(item) { return item.entry.completed === false || item.entry.completed === 'partial'; })) {
+    items.push('<li>A recent session was missed or partial. Do not automatically cram missed work into tomorrow; continue with the planned day unless the reason for missing it calls for a change.</li>');
+  }
+  var conditioning = load.entries.filter(function(item) { return item.entry.conditioning && item.entry.conditioning !== 'unk'; }).map(function(item) { return ({acc:'Acceleration',max:'Max velocity',tmp:'Tempo',other:'Other'}[item.entry.conditioning] || item.entry.conditioning); });
+  if (conditioning.length) items.push('<li>Recent logged conditioning: <strong>'+conditioning.map(escapeHTML).join(', ')+'</strong>.</li>');
+  return '<div class="adapt '+(warning?'warning':'')+'"><h4>Next-session adjustment — previous three days</h4><ul>'+items.join('')+'</ul><p>Adjustments are guidance, not an automatic override of your coach’s instructions. Pain takes priority over the planned workout.</p></div>';
+}
+function logPanelHTML() {
+  var dayId = days[current].id;
+  if (dayId === 'sun') return ''; // Full rest day: no session log needed.
+  var d = dateForDay(current);
+  var key = dateKey(d);
+  var e = trainingLogs[key] || {};
+  var isConditioningDay = days[current].id === 'tue' || days[current].id === 'thu';
+  var conditioning = e.conditioning || (isConditioningDay ? cond[days[current].id] : 'unk') || 'unk';
+  return '<section class="log-panel" aria-label="Training log">' +
+    '<h3>Session log</h3><p class="log-intro">'+escapeHTML(dateLabel(d))+' · Entries save on this browser when you press Save. You can return later and edit them. Adjustments now consider the previous three calendar days.</p>'+
+    '<div class="log-grid">' +
+      '<div class="log-field"><label for="logCompleted">Session completed?</label><select id="logCompleted"><option value="">Not recorded</option><option value="yes" '+(e.completed===true?'selected':'')+'>Yes</option><option value="no" '+(e.completed===false?'selected':'')+'>No</option><option value="partial" '+(e.completed==='partial'?'selected':'')+'>Partially</option></select></div>'+
+      '<div class="log-field"><label for="logQuality">Session quality (1–5)</label><select id="logQuality"><option value="">Not rated</option>'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'" '+(Number(e.quality)===n?'selected':'')+'>'+n+(n===1?' · Very poor':n===5?' · Excellent':'')+'</option>';}).join('')+'</select></div>'+
+      '<div class="log-field"><label for="logFatigue">Overall fatigue (1–5)</label><select id="logFatigue"><option value="">Not rated</option>'+[1,2,3,4,5].map(function(n){return '<option value="'+n+'" '+(Number(e.fatigue)===n?'selected':'')+'>'+n+(n===1?' · Very fresh':n===5?' · Extremely fatigued':'')+'</option>';}).join('')+'</select></div>'+
+      (isConditioningDay ? '<div class="log-field"><label for="logConditioning">Coach’s conditioning assignment</label><select id="logConditioning"><option value="unk" '+(conditioning==='unk'?'selected':'')+'>Not applicable / not known</option><option value="acc" '+(conditioning==='acc'?'selected':'')+'>Acceleration</option><option value="max" '+(conditioning==='max'?'selected':'')+'>Max velocity</option><option value="tmp" '+(conditioning==='tmp'?'selected':'')+'>Tempo</option><option value="other" '+(conditioning==='other'?'selected':'')+'>Other (describe below)</option></select></div>' : '')+
+      '<div class="log-field full"><label class="log-check"><input type="checkbox" id="logPain" '+(e.pain?'checked':'')+'> Pain or unusual stiffness?</label><div id="logPainNotesWrap" '+(e.pain?'':'style="display:none"')+'><label for="logPainNotes">Where, when, and what did it feel like?</label><input id="logPainNotes" type="text" value="'+escapeHTML(e.painNotes||'')+'" placeholder="e.g. left hamstring tight during accelerations"></div></div>'+
+      (dayId === 'mon' || dayId === 'wed' || dayId === 'fri' ? '<div class="log-field full"><label for="logWeights">Weights / sets / reps / RPE</label><textarea id="logWeights" placeholder="e.g. Hang clean: 185 × 2, 195 × 2 (RPE 7); squat: 275 × 4 × 3">'+escapeHTML(e.weights||'')+'</textarea></div>' : '')+
+      (isConditioningDay ? '<div class="log-field full"><label for="logConditionNotes">Conditioning details (especially if you selected Other)</label><textarea id="logConditionNotes" placeholder="e.g. 6 × 30m accelerations, full recovery">'+escapeHTML(e.conditionNotes||'')+'</textarea></div>' : '')+
+      '<div class="log-field full"><label for="logTechnical">Technical observations / what to remember next time</label><textarea id="logTechnical" placeholder="What felt good? What needs work? Any cues or measurements?">'+escapeHTML(e.technical||'')+'</textarea></div>'+
+    '</div><div class="log-actions"><button type="button" class="save" id="saveLog">Save this day</button><button type="button" id="clearLog">Clear this day</button><span class="log-status" id="daySaveStatus">'+(trainingLogs[key]?'Previously saved':'Not saved yet')+'</span></div>'+
+    (dayId === 'fri' || dayId === 'sat' ? '' : adjustmentFor(current)) +
+    '<p class="log-history">Storage note: entries remain on this browser/device, even after closing the page. They do not automatically sync to another device or browser. Use <strong>Export training log</strong> for a backup or to move your log.</p>'+
+    '</section>';
+}
+function syncConditionFromSavedLog() {
+  var id = days[current].id;
+  if (id === 'tue' || id === 'thu') {
+    var e = selectedLog();
+    if (e.conditioning && ['acc','max','tmp'].indexOf(e.conditioning) !== -1) cond[id] = e.conditioning;
+    else if (e.conditioning === 'unk' || e.conditioning === 'other') cond[id] = 'unk';
+  }
+}
+
+function applyTrainingAdjustments(x) {
+  var load = recentTrainingLoad(current, 3);
+  if (!load.entries.length) return;
+  if (!load.reduce) {
+    if (load.moderate && x.notes) x.notes.unshift('LOAD CHECK: recent logs show some accumulated fatigue. Keep the main work, use the lower end of prescribed ranges, and let warm-up quality and bar speed determine whether to continue normally.');
+    if (load.painEntries.length && x.notes) x.notes.unshift('PAIN CHECK: pain or unusual stiffness was logged in the previous three days. Assess the affected area and agree on pain-free modifications with your coach before training.');
+    return;
+  }
+  var reason = load.concerningDays + ' concerning day(s) across the previous three days';
+  function adjustBlock(block) {
+    if (!block.rows) return;
+    block.rows = block.rows.map(function(row) {
+      var name = String(row[0]).toLowerCase();
+      var r = row.slice();
+      if (name.indexOf('full high jumps') !== -1) r[1] = '2 attempts';
+      else if (name.indexOf('full jumps') !== -1) r[1] = '1–2 attempts';
+      else if (name.indexOf('short-approach jumps') !== -1 || name.indexOf('short approach jumps') !== -1) r[1] = '2';
+      else if (name.indexOf('pop-ups') !== -1) r[1] = '2 × 2';
+      else if (name.indexOf('penultimate') !== -1) r[1] = '2 × 2';
+      else if (name.indexOf('takeoff drills') !== -1) r[1] = '2 × 2';
+      else if (name.indexOf('curve runs') !== -1) r[1] = '3';
+      else if (name.indexOf('approach run-throughs') !== -1) r[1] = '3–4';
+      else if (name.indexOf('hang clean') !== -1 || name.indexOf('hang power clean') !== -1) r[1] = '2–3 × 2';
+      else if (name.indexOf('back squat') !== -1) r[1] = '3 × 4';
+      else if (name.indexOf('romanian deadlift') !== -1) r[1] = '2 × 6';
+      else if (name.indexOf('bulgarian split squat') !== -1) r[1] = '1 × 6/leg';
+      else if (name.indexOf('standing calf raise') !== -1) r[1] = 'Optional · 1–2 × 12';
+      else if (name.indexOf('deadlift') !== -1) r[1] = '2 × 4';
+      else if (name.indexOf('nordic') !== -1) r[1] = '1 × 3';
+      else if (name.indexOf('exercise-ball hamstring curls') !== -1) r[1] = 'Optional · skip';
+      else if (name.indexOf('bench press') !== -1) r[1] = '3 × 5';
+      else if (name.indexOf('pull-ups') !== -1) r[1] = '2 × 6–8';
+      else if (name.indexOf('one-arm db row') !== -1) r[1] = '2 × 8/side';
+      return r;
+    });
+  }
+  [x.am, x.pm].forEach(function(section) {
+    if (!section || !section.blocks) return;
+    section.blocks.forEach(adjustBlock);
+  });
+  if (x.notes) x.notes.unshift('AUTO-ADJUSTED: displayed jump and lifting volume has been reduced because recent logs show ' + reason + '. Keep the work crisp; do not add missed volume.');
+  x.autoAdjusted = true;
+}
+
+function renderDetail() {
+  var d = days[current];
+  var x = d.detail();
+  applyTrainingAdjustments(x);
+  panel.innerHTML =
+    '<div class="d-top"><h2>' + d.name + '</h2><p>' + d.summary + '</p></div>' +
+    (x.picker ? '<div class="cond"><span class="wl">Afternoon conditioning</span><span class="seg-btns" role="group" aria-label="Afternoon conditioning type">' +
+      ['unk', 'acc', 'max', 'tmp'].map(function (v) {
+        return '<button type="button" id="cond-' + v + '" data-cond="' + v + '" aria-pressed="' + (cond[x.picker] === v) + '">' + COND[v] + '</button>';
+      }).join('') + '</span><p class="cond-note">' + condText(x.picker) + '</p></div>' : '') +
+    '<div class="secs">' + secHTML('Morning', x.am) + secHTML('Afternoon', x.pm) + '</div>' +
+    (x.notes && x.notes.length ? '<div class="notes"><h3>Keep in mind</h3><ul>' + x.notes.map(function (n) { return '<li>' + n + '</li>'; }).join('') + '</ul></div>' : '') + logPanelHTML();
+}
+
+function renderWeek() {
+  ['A', 'B'].forEach(function (w) {
+    document.getElementById('wk' + w).setAttribute('aria-pressed', w === week ? 'true' : 'false');
+  });
+  var w = WEEKS[week];
+  document.getElementById('wnote').textContent =
+    'Monday: ' + (w.discus ? 'shot put + light discus' : 'shot put only') + '. Thursday: ' + (w.thu === 'hj' ? 'high jump' : 'long jump') + ' leads. Friday: ' + FRI[w.fri].name.toLowerCase() + '.';
+  days.forEach(function (d, i) { dayEls[i].innerHTML = dayHTML(d, i); });
+  renderDetail();
+}
+
+function place() {
+  if (mq.matches) { dayEls[current].after(panel); }
+  else { slot.appendChild(panel); }
+}
+
+function select(i, user) {
+  current = i;
+  syncConditionFromSavedLog();
+  dayEls.forEach(function (el, j) { el.setAttribute('aria-expanded', j === i ? 'true' : 'false'); });
+  renderDetail();
+  place();
+  if (user && mq.matches) {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    dayEls[i].scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
+  }
+}
+
+document.getElementById('weekbtns').addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-week]');
+  if (!btn) return;
+  week = btn.getAttribute('data-week');
+  try { localStorage.setItem('trainingWeekCycle', week); } catch (err) {}
+  renderWeek();
+});
+
+panel.addEventListener('click', function (e) {
+  var btn = e.target.closest('[data-cond]');
+  if (!btn) return;
+  var id = days[current].id;
+  cond[id] = btn.getAttribute('data-cond');
+  dayEls[current].innerHTML = dayHTML(days[current], current);
+  renderDetail();
+  var again = document.getElementById('cond-' + cond[id]);
+  if (again) again.focus();
+});
+
+
+panel.addEventListener('change', function (e) {
+  if (e.target && e.target.id === 'logPain') {
+    var notesWrap = document.getElementById('logPainNotesWrap');
+    if (notesWrap) notesWrap.style.display = e.target.checked ? '' : 'none';
+  }
+});
+
+panel.addEventListener('click', function (e) {
+  var target = e.target;
+  if (!target || !target.id) return;
+  var key = dateKey(dateForDay(current));
+  if (target.id === 'saveLog') {
+    var completedValue = document.getElementById('logCompleted').value;
+    var conditioningField = document.getElementById('logConditioning');
+    var conditioningValue = conditioningField ? conditioningField.value : 'unk';
+    var conditioningNotesField = document.getElementById('logConditionNotes');
+    trainingLogs[key] = {
+      completed: completedValue === '' ? null : completedValue === 'yes' ? true : completedValue === 'no' ? false : 'partial',
+      quality: document.getElementById('logQuality').value,
+      fatigue: document.getElementById('logFatigue').value,
+      pain: document.getElementById('logPain').checked,
+      painNotes: document.getElementById('logPainNotes').value,
+      conditioning: conditioningValue,
+      conditionNotes: conditioningNotesField ? conditioningNotesField.value : '',
+      technical: document.getElementById('logTechnical').value,
+      weights: document.getElementById('logWeights') ? document.getElementById('logWeights').value : '',
+      updatedAt: new Date().toISOString()
+    };
+    if ((days[current].id === 'tue' || days[current].id === 'thu') && ['acc','max','tmp'].indexOf(conditioningValue) !== -1) cond[days[current].id] = conditioningValue;
+    else if (days[current].id === 'tue' || days[current].id === 'thu') cond[days[current].id] = 'unk';
+    var ok = saveLogs();
+    renderDetail();
+    var status = document.getElementById('daySaveStatus');
+    if (status) status.textContent = ok ? 'Saved ✓' : 'Save failed — export/backup unavailable';
+  }
+  if (target.id === 'clearLog') {
+    if (trainingLogs[key] && window.confirm('Clear the training log for '+key+'?')) {
+      delete trainingLogs[key];
+      saveLogs();
+      if (days[current].id === 'tue' || days[current].id === 'thu') cond[days[current].id] = 'unk';
+      renderDetail();
+    }
+  }
+});
+
+if (mq.addEventListener) mq.addEventListener('change', place);
+var MEETS = [
+  { s: [2026, 12, 12], e: null, name: 'Spokane Invitational', tag: 'Shot put; maybe 60mH' },
+  { s: [2027, 1, 15], e: [2027, 1, 16], name: 'Whitworth Winter Classic', tag: 'TBD' },
+  { s: [2027, 1, 22], e: [2027, 1, 23], name: 'Lauren McCluskey Invitational', tag: 'Heptathlon' },
+  { s: [2027, 1, 29], e: null, name: 'Idaho Challenge, collegiate and HS', tag: 'TBD' },
+  { s: [2027, 2, 5], e: [2027, 2, 6], name: "Riverfront Invitational and Multi's", tag: 'Heptathlon if not qualified' },
+  { s: [2027, 2, 12], e: [2027, 2, 13], name: 'Whitworth Indoor Invite', tag: 'Heptathlon if not qualified' },
+  { s: [2027, 3, 12], e: [2027, 3, 13], name: 'Indoor Nationals', tag: 'Season goal' }
+];
+function renderMeets() {
+  var fmt = function (a) { return new Date(a[0], a[1] - 1, a[2]).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); };
+  var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  document.getElementById('meets').innerHTML = MEETS.map(function (m) {
+    var start = new Date(m.s[0], m.s[1] - 1, m.s[2]);
+    var days = Math.round((start - now) / 864e5);
+    var away = days < 0 ? 'Past' : days === 0 ? 'Today' : days < 14 ? days + ' days' : Math.round(days / 7) + ' weeks';
+    return '<tr><td>' + fmt(m.s) + (m.e ? ' – ' + fmt(m.e) : '') + '</td><td>' + m.name + '</td><td>' +
+      (m.tag ? '<span class="tag">' + m.tag + '</span>' : '') + '</td><td class="dim">' + away + '</td></tr>';
+  }).join('');
+}
+document.getElementById('exportLog').addEventListener('click', function () {
+  var blob = new Blob([JSON.stringify({format:'training-week-calendar-log',version:1,exportedAt:new Date().toISOString(),entries:trainingLogs}, null, 2)], {type:'application/json'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a'); a.href = url; a.download = 'training-log-backup.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+});
+document.getElementById('importLogButton').addEventListener('click', function () { document.getElementById('importLogFile').click(); });
+document.getElementById('importLogFile').addEventListener('change', function (e) {
+  var file = e.target.files && e.target.files[0]; if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function () {
+    try {
+      var parsed = JSON.parse(reader.result);
+      var incoming = parsed.entries || parsed;
+      if (!incoming || typeof incoming !== 'object' || Array.isArray(incoming)) throw new Error('Invalid log format');
+      trainingLogs = Object.assign({}, trainingLogs, incoming);
+      saveLogs(); renderDetail();
+      alert('Training log imported. Existing dates in the backup replaced matching dates.');
+    } catch (err) { alert('Could not import this file. Please choose a training-log JSON backup.'); }
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+renderMeets();
+renderWeek();
+select(todayIdx, false);
+</script>
+
+</body></html>
